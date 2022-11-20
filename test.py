@@ -23,4 +23,4 @@ def test(testloader, model):
 
     print(f'Error rate of the network on the 10000 test images: {error_rate} %')
     all_loss.append(error_rate)
-    return all_loss
+    return error_rate

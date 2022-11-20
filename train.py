@@ -3,13 +3,13 @@ import torch
 import torch.nn as nn
 import test
 
+
 def training(model, trainloader, testloader):
     use_mps = torch.backends.mps.is_available()
     device = torch.device("mps" if use_mps else "cpu")
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     for epoch in range(1):
-
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
 
@@ -19,7 +19,6 @@ def training(model, trainloader, testloader):
             optimizer.zero_grad()
 
             outputs = model(inputs)
-
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
