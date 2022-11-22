@@ -237,11 +237,11 @@ class Pop():
             if layer_child2[b] == 5:
                 len_layer_child2 = b
 
-        # if len_layer_child1 < 5 or len_layer_child2 < 5:  # 둘중 하나라도 길이가 5를 넘지 못하면 돌연변이 만들지 않음
-        #     return layer_child1, layer_child2, unit_child1, unit_child2
+        if len_layer_child1 < 5 or len_layer_child2 < 5:  # 둘중 하나라도 길이가 5를 넘지 못하면 돌연변이 만들지 않음
+            return layer_child1, layer_child2, unit_child1, unit_child2
 
         if randNum == 1:  # residual block
-            print("crossover 1")
+            print("mutation 1")
             one_point_ch1 = np.random.randint(2, len_layer_child1 - 2)
             one_point_ch2 = np.random.randint(2, len_layer_child2 - 2)
 
@@ -276,7 +276,7 @@ class Pop():
 
 
         elif randNum == 2:  # delete conv or pool layerv
-            print("crossover 2")
+            print("mutation 2")
             one_point_ch1 = np.random.randint(2, len_layer_child1 - 2)  # 자식1 삭제할 점
             one_point_ch2 = np.random.randint(2, len_layer_child2 - 2)  # 자식2 삭제할 점
 
