@@ -6,8 +6,6 @@ import create_model
 import dataloader
 import train
 from Configure import params_settings
-import torch.nn as nn
-import math
 import random
 
 population_ = []
@@ -88,7 +86,7 @@ class Pop():
                 elif self.population_[row][col] == 3:
                     conv_unit.append(random.choice(self.max_pooling))
                 elif self.population_[row][col] == 4:
-                    conv_unit.append(np.random.randint(1000))  # dense
+                    conv_unit.append(np.random.randint(1000))  # dense   np.random.randint(1000)
                 elif self.population_[row][col] == 5:
                     conv_unit.append(10)
                 elif self.population_[row][col] == 6:
@@ -119,12 +117,12 @@ class Pop():
 
         chromosome_probabilities = []
 
-        for i in range(params_settings.population):
+        for i in range(len(error)):
             chromosome_probabilities.append(error[i] / sum_of_fitness)
 
-        a, b = np.random.choice(params_settings.population, 2, p=chromosome_probabilities)
+        a, b = np.random.choice(len(chromosome_probabilities), 2, p=chromosome_probabilities)
         if a == b:
-            b = np.random.choice(params_settings.population, 1, p=chromosome_probabilities)
+            b = np.random.choice(len(chromosome_probabilities), 1, p=chromosome_probabilities)
             b = b.tolist()  # ndarray to list
             b = b[0]  # only integer
 
@@ -185,7 +183,8 @@ class Pop():
                 unit_child2.append(0)
 
         mutation_prob = np.random.rand()
-        if mutation_prob <= 0.2:  # 돌연변이 확률
+
+        if mutation_prob <= params_settings.mutation_prob:  # 0.2:  # 돌연변이 확률
             layer_child1, layer_child2, unit_child1, unit_child2 = self.mutation(layer_child1, layer_child2,
                                                                                  unit_child1, unit_child2)
 
@@ -216,13 +215,14 @@ class Pop():
 
         population_ = population_.tolist()
 
-
         for x in range(2):  # 삭제 문제 해결해야함
             max_error = error.index(max(error))
             population_.pop(max_error)
             ConvUnit = np.delete(ConvUnit, max_error, axis=0)
             error = np.delete(error, max_error, axis=0)
             error = error.tolist()
+
+        # print(len(population_), len(ConvUnit), len(error))
 
         return torch.tensor(population_), ConvUnit, error
 
@@ -237,8 +237,8 @@ class Pop():
             if layer_child2[b] == 5:
                 len_layer_child2 = b
 
-        if len_layer_child1 < 5 or len_layer_child2 < 5:  # 둘중 하나라도 길이가 5를 넘지 못하면 돌연변이 만들지 않음
-            return layer_child1, layer_child2, unit_child1, unit_child2
+        # if len_layer_child1 < 5 or len_layer_child2 < 5:  # 둘중 하나라도 길이가 5를 넘지 못하면 돌연변이 만들지 않음
+        #     return layer_child1, layer_child2, unit_child1, unit_child2
 
         if randNum == 1:  # residual block
             print("crossover 1")
@@ -307,10 +307,6 @@ class Pop():
 
         else:  # change conv layer <--> pool layer
             print("reverse mutation")
-            layer_child1 = layer_child1.tolist()
-            layer_child2 = layer_child2.tolist()
-            unit_child1 = unit_child1.tolist()
-            unit_child2 = unit_child2.tolist()
 
             ch1_first = layer_child1[:1]
             ch1_last = layer_child1[len_layer_child1 - 2:]
@@ -352,10 +348,12 @@ class Pop():
                 lenth = self.pop_layer - len(unit_child2)
                 for i in range(lenth):
                     unit_child2.append(0)
+
         return layer_child1, layer_child2, unit_child1, unit_child2  # er_child2, unit_child1, unit_child2
 
     def cat(self, population, conv_unit, layer_child1, layer_child2, unit_child1, unit_child2):
         print("concat")
+
         conv_unit = torch.Tensor(conv_unit)
         layer_child1 = layer_child1.view(1, self.pop_layer)
         layer_child2 = layer_child2.view(1, self.pop_layer)
@@ -379,7 +377,6 @@ class Pop():
 
             for Chromosome in range(len(population)):
                 model = create_model.GANAS(population[Chromosome], conv_unit[Chromosome]).to(device)  # pop conv
-
                 trainloader, testloader = dataloader.data_loader()
                 error_rate = train.training(model, trainloader, testloader)
                 all_error.append(error_rate)
