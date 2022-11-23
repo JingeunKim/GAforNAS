@@ -4,12 +4,12 @@ import torch.nn as nn
 import test
 
 
-def training(model, trainloader, testloader):
+def training(model, trainloader, testloader, epochs):
     use_mps = torch.backends.mps.is_available()
     device = torch.device("mps" if use_mps else "cpu")
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-    for epoch in range(1):
+    for epoch in range(epochs):
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
 

@@ -369,7 +369,7 @@ class Pop():
             for Chromosome in range(len(population)):
                 model = create_model.GANAS(population[Chromosome], conv_unit[Chromosome]).to(device)
                 trainloader, testloader = dataloader.data_loader()
-                error_rate = train.training(model, trainloader, testloader)
+                error_rate = train.training(model, trainloader, testloader, params_settings.epoch)
                 all_error.append(error_rate)
             generation_fitness.append(min(all_error))
             print(generation + 1, "error")
