@@ -1,5 +1,4 @@
 import math
-
 import torch.nn as nn
 
 
@@ -41,7 +40,7 @@ def residual(layers, conv_unit, size_last_unit):
     return layers
 
 
-class GANAS(nn.Module):  # Conv 는 -2, Maxpooling 은 /2 flatten 하는 레이어는 마지막 conv아웃풋 레이어 * (32 - Conv)
+class GANAS(nn.Module):
     def __init__(self, population, conv_unit):
         super(GANAS, self).__init__()
         size_last_unit = conv_unit[0]
@@ -104,7 +103,6 @@ class GANAS(nn.Module):  # Conv 는 -2, Maxpooling 은 /2 flatten 하는 레이�
                     setattr(self, f'skip{o}', nn.Sequential(*globals()["skip_layers{}".format(o)]))
                     self.cnt.append(2)
         else:
-            # self.layers = nn.Sequential(*globals()["layers{}".format(0)])
             setattr(self, f'layers{0}', nn.Sequential(*globals()["layers{}".format(0)]))
             self.cnt.append(1)
 

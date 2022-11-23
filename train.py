@@ -24,7 +24,7 @@ def training(model, trainloader, testloader):
             optimizer.step()
 
             running_loss += loss.item()
-            if i % 1000 == 999:  # 미니배치 2000번마다 로스
+            if i % 1000 == 999:
                 print('[%d, %5d] loss: %.3f' %
                       (epoch + 1, i + 1, running_loss / 1000))
                 running_loss = 0.0
