@@ -29,11 +29,11 @@ class Pop():
                 num = np.random.rand()
                 if num < 0.25:  # conv layer +batch normalization
                     num = 1
-                elif num < 0.5 and num >= 0.25: # convlayer
+                elif num < 0.5 and num >= 0.25:  # convlayer
                     num = 2
                 elif num >= 0.5 and 0.7 > num:  # pooling layer
                     num = 3
-                elif num >= 0.7 and num < 0.85:  # skip layer
+                elif num >= 0.7 and num < 0.9:  # skip layer
                     num = 6
                 else:  # dense
                     num = 4
@@ -218,7 +218,6 @@ class Pop():
             error = np.delete(error, max_error, axis=0)
             error = error.tolist()
 
-
         return torch.tensor(population_), ConvUnit, error
 
     def mutation(self, layer_child1, layer_child2, unit_child1, unit_child2):
@@ -389,7 +388,7 @@ class Pop():
         best_conv = final_conv_unit[0]
         model = create_model.GANAS(best_pop, best_conv).to(device)
 
-        torch.save(model, f'./model.pt')
+        torch.save(model, f'./model2.pt')
         print("end..")
         self.drawGA(generation_fitness)
 
@@ -398,3 +397,4 @@ class Pop():
         plt.ylabel("Fitness")
         plt.plot(value)
         plt.show()
+        plt.savefig('./model2.png')

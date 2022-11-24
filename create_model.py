@@ -34,9 +34,11 @@ def lastfclayer(layers, conv_unit, size_last_unit):
     return layers
 
 
-def residual(layers, conv_unit, size_last_unit):
-    layers += [nn.Conv2d(size_last_unit, int(conv_unit), 1), nn.ReLU(inplace=True)]
-    layers += [nn.Conv2d(int(conv_unit), size_last_unit, 1)]
+def residual(layers, size_last_unit):
+    layers += [nn.Conv2d(size_last_unit, size_last_unit, 3, padding=1),
+               nn.BatchNorm2d(size_last_unit), nn.ReLU(inplace=True)]
+    layers += [nn.Conv2d(size_last_unit, size_last_unit, 3, padding=1),
+               nn.BatchNorm2d(size_last_unit), nn.ReLU(inplace=True)]
     return layers
 
 
@@ -48,6 +50,8 @@ class GANAS(nn.Module):
         fc_layers = []
         population = population.tolist()
         num_six = population.count(6)
+
+        print(population)
 
         globals()["layers{}".format(0)] = []
 
@@ -81,7 +85,6 @@ class GANAS(nn.Module):
                 globals()["skip_layers{}".format(self.idx)] = []
                 globals()["layers{}".format(self.idx)] = []
                 globals()["skip_layers{}".format(self.idx)] = residual(globals()["skip_layers{}".format(self.idx)],
-                                                                       conv_unit[i],
                                                                        size_last_unit)
 
                 self.idx += 1
