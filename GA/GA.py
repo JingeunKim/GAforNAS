@@ -299,26 +299,26 @@ class Pop():
             print("mutation. reverse")
 
             ch1_first = layer_child1[:1]
-            ch1_last = layer_child1[len_layer_child1 - 2:]
-            ch1_body = layer_child1[1:len_layer_child1 - 2]
+            ch1_last = layer_child1[len_layer_child1 - 1:]
+            ch1_body = layer_child1[1:len_layer_child1 - 1]
             ch1_body_reverse = ch1_body[::-1]
             layer_child1 = ch1_first + ch1_body_reverse + ch1_last
 
             un1_first = unit_child1[:1]
-            un1_last = unit_child1[len_layer_child1 - 2:]
-            un1_body = unit_child1[1:len_layer_child1 - 2]
+            un1_last = unit_child1[len_layer_child1 - 1:]
+            un1_body = unit_child1[1:len_layer_child1 - 1]
             un1_body_reverse = un1_body[::-1]
             unit_child1 = un1_first + un1_body_reverse + un1_last
 
             ch2_first = layer_child2[:1]
-            ch2_last = layer_child2[len_layer_child1 - 2:]
-            ch2_body = layer_child2[1:len_layer_child1 - 2]
+            ch2_last = layer_child2[len_layer_child1 - 1:]
+            ch2_body = layer_child2[1:len_layer_child1 - 1]
             ch2_body_reverse = ch2_body[::-1]
             layer_child2 = ch2_first + ch2_body_reverse + ch2_last
 
             un2_first = unit_child2[:1]
-            un2_last = unit_child2[len_layer_child1 - 2:]
-            un2_body = unit_child2[1:len_layer_child1 - 2]
+            un2_last = unit_child2[len_layer_child1 - 1:]
+            un2_body = unit_child2[1:len_layer_child1 - 1]
             un2_body_reverse = un2_body[::-1]
             unit_child2 = un2_first + un2_body_reverse + un2_last
 
@@ -360,12 +360,28 @@ class Pop():
 
     def evolve(self, device, population, conv_unit):
         generation_fitness = []
-        for generation in range(params_settings.generations):
-            all_error = []
+        all_error = []
+        print("-" * 30)
+        print("1 generation")
+        for Chromosome in range(len(population)):
+            model = create_model.GANAS(population[Chromosome], conv_unit[Chromosome]).to(device)
+            trainloader, testloader = dataloader.data_loader()
+            error_rate = train.training(model, trainloader, testloader, params_settings.epoch)
+            all_error.append(error_rate)
+        generation_fitness.append(min(all_error))
+        print("init error")
+        print(all_error)
+        for ch in range(len(population) // 4):
+            print("offsrting start")
+            layer_child1, layer_child2, unit_child1, unit_child2 = self.select(all_error, population, conv_unit)
+            population, conv_unit, all_error = self.del_pop(all_error, population, conv_unit)
+            population, conv_unit = self.cat(population, conv_unit, layer_child1, layer_child2, unit_child1,
+                                             unit_child2)
+        # GA start
+        for generation in range(1, params_settings.generations):
             print("-" * 30)
             print(generation + 1, "generation")
-
-            for Chromosome in range(len(population)):
+            for Chromosome in range(params_settings.population//2, len(population)):
                 model = create_model.GANAS(population[Chromosome], conv_unit[Chromosome]).to(device)
                 trainloader, testloader = dataloader.data_loader()
                 error_rate = train.training(model, trainloader, testloader, params_settings.epoch)
