@@ -16,7 +16,7 @@ class Pop():
         self.population = params_settings.population
         self.pop_layer = params_settings.pop_layer
 
-        self.conv = [16, 32, 64, 128, 256, 512, 1024]
+        self.conv = [16, 32, 64, 128, 256, 512]
         self.max_pooling = [2, 3]
 
     def initialization_pop(self):
@@ -297,7 +297,6 @@ class Pop():
 
         else:
             print("mutation. reverse")
-
             ch1_first = layer_child1[:1]
             ch1_last = layer_child1[len_layer_child1 - 1:]
             ch1_body = layer_child1[1:len_layer_child1 - 1]
@@ -311,14 +310,14 @@ class Pop():
             unit_child1 = un1_first + un1_body_reverse + un1_last
 
             ch2_first = layer_child2[:1]
-            ch2_last = layer_child2[len_layer_child1 - 1:]
-            ch2_body = layer_child2[1:len_layer_child1 - 1]
+            ch2_last = layer_child2[len_layer_child2 - 1:]
+            ch2_body = layer_child2[1:len_layer_child2 - 1]
             ch2_body_reverse = ch2_body[::-1]
             layer_child2 = ch2_first + ch2_body_reverse + ch2_last
 
             un2_first = unit_child2[:1]
-            un2_last = unit_child2[len_layer_child1 - 1:]
-            un2_body = unit_child2[1:len_layer_child1 - 1]
+            un2_last = unit_child2[len_layer_child2 - 1:]
+            un2_body = unit_child2[1:len_layer_child2 - 1]
             un2_body_reverse = un2_body[::-1]
             unit_child2 = un2_first + un2_body_reverse + un2_last
 
