@@ -20,7 +20,6 @@ def test(testloader, model):
             correct += (predicted == labels).sum().item()
             acc = 100 * correct // total
             error_rate = 100 - acc
-
     print(f'Error rate of the network on the 10000 test images: {error_rate} %')
     all_loss.append(error_rate)
-    return error_rate
+    return all_loss

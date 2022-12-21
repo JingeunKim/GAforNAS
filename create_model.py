@@ -19,7 +19,7 @@ def conv(layers, conv_unit, size_last_unit):
 
 
 def pool(layers, conv_unit):
-    layers += [nn.MaxPool2d(3, int(conv_unit), 1), nn.ReLU(inplace=True)]
+    layers += [nn.MaxPool2d(3, int(conv_unit), 1)]
     return layers
 
 
@@ -35,10 +35,12 @@ def lastfclayer(layers, conv_unit, size_last_unit):
 
 
 def residual(layers, size_last_unit):
-    layers += [nn.Conv2d(size_last_unit, size_last_unit, 3, padding=1),
+    layers += [nn.Conv2d(size_last_unit, size_last_unit, 1),
                nn.BatchNorm2d(size_last_unit), nn.ReLU(inplace=True)]
     layers += [nn.Conv2d(size_last_unit, size_last_unit, 3, padding=1),
                nn.BatchNorm2d(size_last_unit), nn.ReLU(inplace=True)]
+    layers += [nn.Conv2d(size_last_unit, size_last_unit, 1),
+               nn.BatchNorm2d(size_last_unit)]
     return layers
 
 
@@ -50,13 +52,10 @@ class GANAS(nn.Module):
         fc_layers = []
         population = population.tolist()
         num_six = population.count(6)
-
         print(population)
-
         globals()["layers{}".format(0)] = []
 
         layers0 = make_initial(globals()["layers{}".format(0)], conv_unit[0])
-
         self.idx = 0
         for i in range(1, len(population)):
             if int(population[i]) == 1:
@@ -76,6 +75,7 @@ class GANAS(nn.Module):
             elif int(population[i]) == 4:
                 if dense <= 0:
                     dense = 1
+
                 fc_layers = fclayer(fc_layers, conv_unit[i], size_last_unit, dense)
                 size_last_unit = conv_unit[i]
             elif int(population[i]) == 5:

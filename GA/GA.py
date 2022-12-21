@@ -1,3 +1,5 @@
+import csv
+from sklearn.ensemble import RandomForestRegressor
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -6,6 +8,7 @@ import dataloader
 import train
 from Configure import params_settings
 import random
+import pandas as pd
 
 population_ = []
 
@@ -18,6 +21,7 @@ class Pop():
 
         self.conv = [16, 32, 64, 128, 256, 512]
         self.max_pooling = [2, 3]
+        self.dense = [128, 256, 512, 1024, 2048]
 
     def initialization_pop(self):
         print("initialization")
@@ -27,15 +31,15 @@ class Pop():
             arr.append(1)
             while (cnt < self.pop_layer - 1):
                 num = np.random.rand()
-                if num < 0.25:  # conv layer +batch normalization
+                if num < 0.3:  # conv layer +batch normalization 25%
                     num = 1
-                elif num < 0.5 and num >= 0.25:  # convlayer
+                elif num < 0.4 and num >= 0.3:  # convlayer 15%
                     num = 2
-                elif num >= 0.5 and 0.7 > num:  # pooling layer
+                elif num >= 0.4 and 0.6 > num:  # pooling layer 20%
                     num = 3
-                elif num >= 0.7 and num < 0.9:  # skip layer
+                elif num >= 0.6 and num < 0.9:  # skip layer 25%
                     num = 6
-                else:  # dense
+                else:  # dense 15%
                     num = 4
                 arr.append(num)
 
@@ -47,13 +51,15 @@ class Pop():
                         arr.append(5)
                     break
 
+                appendlayer = [1, 2, 6]
                 if arr[cnt] == 3 and arr[cnt + 1] == 3:
-                    ran = np.random.rand()
-                    if ran > 0.5:
-                        arr[cnt + 1] = 1
-                    else:
-                        arr[cnt + 1] = 2
-                        break
+                    arr[cnt + 1] = random.choice(appendlayer)
+                    # ran = np.random.rand()
+                    # if ran > 0.5:
+                    #     arr[cnt + 1] = 1
+                    # else:
+                    #     arr[cnt + 1] = 2
+                    #     break
                 cnt += 1
 
             if arr[len(arr) - 1] == 1 or arr[len(arr) - 1] == 2 or arr[len(arr) - 1] == 3 or arr[
@@ -83,7 +89,7 @@ class Pop():
                 elif self.population_[row][col] == 3:
                     conv_unit.append(random.choice(self.max_pooling))
                 elif self.population_[row][col] == 4:
-                    conv_unit.append(np.random.randint(1000))
+                    conv_unit.append(random.choice(self.dense))
                 elif self.population_[row][col] == 5:
                     conv_unit.append(10)
                 elif self.population_[row][col] == 6:
@@ -102,12 +108,9 @@ class Pop():
         sum_of_fitness = 0.0
 
         print("select")
-
         error = []
         for a in range(len(error_rate)):
-            error.append(error_rate[a])
-
-        error = list(map(int, error))
+            error.append(1 - error_rate[a])
 
         for a in range(len(error)):
             sum_of_fitness += error[a]
@@ -207,7 +210,7 @@ class Pop():
         for a in range(len(error_rate)):
             error.append(error_rate[a])
 
-        error = list(map(int, error))
+        # error = list(map(int, error))
 
         population_ = population_.tolist()
 
@@ -362,11 +365,46 @@ class Pop():
         all_error = []
         print("-" * 30)
         print("1 generation")
+
+        fields = []
+        for label in range(self.pop_layer):
+            fields.append('layer{}'.format(label + 1))
+        for label in range(self.pop_layer):
+            fields.append('output{}'.format(label + 1))
+        fields.append("acc")
+
+        training_list = []
+
         for Chromosome in range(len(population)):
             model = create_model.GANAS(population[Chromosome], conv_unit[Chromosome]).to(device)
+
+            initialPop = population[Chromosome]
+            initialUnit = conv_unit[Chromosome]
+            for pop in range(len(initialPop)):
+                training_list.append(int(initialPop[pop]))
+            for pop in range(len(initialUnit)):
+                training_list.append(int(initialUnit[pop]))
+
             trainloader, testloader = dataloader.data_loader()
             error_rate = train.training(model, trainloader, testloader, params_settings.epoch)
-            all_error.append(error_rate)
+            all_error.append(float(error_rate[0]))
+            training_list.append(float(error_rate[0]))
+
+        training_list = np.array(training_list)
+        training_list = training_list.reshape((-1, params_settings.pop_layer * 2 + 1))
+
+        with open('train.csv', 'w', newline='') as f:
+            write = csv.writer(f)
+            write.writerow(fields)
+            for num in range(params_settings.population):
+                write.writerow(training_list[num])
+
+        df = pd.read_csv('train.csv')
+        X = df.iloc[:, :-1].to_numpy()
+        Y = df.iloc[:, -1].to_numpy()
+        rfmodel = RandomForestRegressor()
+        rfmodel.fit(X, Y)
+
         generation_fitness.append(min(all_error))
         print("init error")
         print(all_error)
@@ -377,17 +415,47 @@ class Pop():
             population, conv_unit = self.cat(population, conv_unit, layer_child1, layer_child2, unit_child1,
                                              unit_child2)
         # GA start
+
         for generation in range(1, params_settings.generations):
             print("-" * 30)
             print(generation + 1, "generation")
-            for Chromosome in range(params_settings.population//2, len(population)):
+            test_list = []
+            for Chromosome in range(params_settings.population // 2, len(population)):
                 model = create_model.GANAS(population[Chromosome], conv_unit[Chromosome]).to(device)
-                trainloader, testloader = dataloader.data_loader()
-                error_rate = train.training(model, trainloader, testloader, params_settings.epoch)
-                all_error.append(error_rate)
+
+                Pop = population[Chromosome]
+                Unit = conv_unit[Chromosome]
+
+                for pop in range(len(Pop)):
+                    test_list.append(int(Pop[pop]))
+                for pop in range(len(Unit)):
+                    test_list.append(int(Unit[pop]))
+
+                # trainloader, testloader = dataloader.data_loader()
+                # error_rate = train.training(model, trainloader, testloader, params_settings.epoch)
+                # all_error.append(error_rate)
+                # test_list.append(float(error_rate[0]))
+
+            test_list = np.array(test_list)
+            test_list = test_list.reshape((-1, params_settings.pop_layer * 2))
+            # print(test_list)
+            with open('test.csv', 'w', newline='') as f:
+                write = csv.writer(f)
+                write.writerow(fields)
+                for num in range(params_settings.population // 2):
+                    write.writerow(test_list[num])
+            test_list = test_list.tolist()
+            df2 = pd.read_csv('test.csv')
+            X_test = df2.iloc[:, :-1].to_numpy()
+            prediction = rfmodel.predict(X_test)
+            for i in range(len(prediction)):
+                all_error.append(prediction[i])
+
             generation_fitness.append(min(all_error))
+
             print(generation + 1, "error")
             print(all_error)
+
             for ch in range(len(population) // 4):
                 print("offsrting start")
                 layer_child1, layer_child2, unit_child1, unit_child2 = self.select(all_error, population, conv_unit)
@@ -403,7 +471,7 @@ class Pop():
         best_conv = final_conv_unit[0]
         model = create_model.GANAS(best_pop, best_conv).to(device)
 
-        torch.save(model, f'./model2.pt')
+        torch.save(model, f'./model3.pt')
         print("end..")
         self.drawGA(generation_fitness)
 
@@ -412,4 +480,4 @@ class Pop():
         plt.ylabel("Fitness")
         plt.plot(value)
         plt.show()
-        plt.savefig('./model2.png')
+        plt.savefig('./model3.png')
