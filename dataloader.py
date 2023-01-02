@@ -2,11 +2,17 @@ import torchvision
 import torchvision.transforms as transforms
 import torch
 
-def data_loader():
 
-    transform = transforms.Compose(
-        [transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+def data_loader():
+    # transform = transforms.Compose(
+    #     [transforms.ToTensor(),
+    #      transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+
+    transform = transforms.Compose([
+        transforms.Pad(4),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(32),
+        transforms.ToTensor()])
 
     batch_size = 128
 
@@ -24,5 +30,3 @@ def data_loader():
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
     return trainloader, testloader
-
-

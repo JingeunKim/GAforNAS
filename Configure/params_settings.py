@@ -1,8 +1,10 @@
 #GA
-generations = 30
-population = 4
-pop_layer = 30
+generations = 20
+population = 100
+pop_layer = 40
+
 mutation_prob = 0.2
 epoch = 1
+model_name = "model7"
 #fianl model
-epochs = 15
+epochs = 30

@@ -1,5 +1,3 @@
-import csv
-from sklearn.ensemble import RandomForestRegressor
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -8,7 +6,7 @@ import dataloader
 import train
 from Configure import params_settings
 import random
-import pandas as pd
+from surrogate_model import RF_predictor
 
 population_ = []
 
@@ -31,15 +29,17 @@ class Pop():
             arr.append(1)
             while (cnt < self.pop_layer - 1):
                 num = np.random.rand()
-                if num < 0.3:  # conv layer +batch normalization 25%
+                if num < 0.15:  # conv layer +batch normalization 15%
                     num = 1
-                elif num < 0.4 and num >= 0.3:  # convlayer 15%
+                elif num < 0.35 and num >= 0.15:  # SENet block 20%
                     num = 2
-                elif num >= 0.4 and 0.6 > num:  # pooling layer 20%
+                elif num >= 0.35 and 0.55 > num:  # pooling layer 20%
                     num = 3
-                elif num >= 0.6 and num < 0.9:  # skip layer 25%
+                elif num >= 0.55 and num < 0.75:  # resnet block 20%
                     num = 6
-                else:  # dense 15%
+                elif num >= 0.75 and num < 0.95:  # densenet block 20%
+                    num = 7
+                else:  # dense 5%
                     num = 4
                 arr.append(num)
 
@@ -51,19 +51,13 @@ class Pop():
                         arr.append(5)
                     break
 
-                appendlayer = [1, 2, 6]
+                appendlayer = [1, 2, 6, 7]
                 if arr[cnt] == 3 and arr[cnt + 1] == 3:
                     arr[cnt + 1] = random.choice(appendlayer)
-                    # ran = np.random.rand()
-                    # if ran > 0.5:
-                    #     arr[cnt + 1] = 1
-                    # else:
-                    #     arr[cnt + 1] = 2
-                    #     break
                 cnt += 1
 
             if arr[len(arr) - 1] == 1 or arr[len(arr) - 1] == 2 or arr[len(arr) - 1] == 3 or arr[
-                len(arr) - 1] == 4 or arr[len(arr) - 1] == 6:
+                len(arr) - 1] == 4 or arr[len(arr) - 1] == 6 or arr[len(arr) - 1] == 7:
                 arr[len(arr) - 2] = 4
                 arr[len(arr) - 1] = 5
 
@@ -94,6 +88,8 @@ class Pop():
                     conv_unit.append(10)
                 elif self.population_[row][col] == 6:
                     conv_unit.append(random.choice(self.conv))
+                elif self.population_[row][col] == 7:
+                    conv_unit.append(random.choice(self.conv))
                 else:
                     conv_unit.append(0)
 
@@ -104,7 +100,7 @@ class Pop():
         return self.population_, conv_unit
 
     def select(self, error_rate, population_,
-               conv_unit):
+               conv_unit, selection):
         sum_of_fitness = 0.0
 
         print("select")
@@ -121,16 +117,34 @@ class Pop():
             chromosome_probabilities.append(error[i] / sum_of_fitness)
 
         a, b = np.random.choice(len(chromosome_probabilities), 2, p=chromosome_probabilities)
-        if a == b:
+
+        while (a in selection):
+            a = np.random.choice(len(chromosome_probabilities), 1, p=chromosome_probabilities)
+            a = a.tolist()
+            a = a[0]
+            if a not in selection:
+                break
+        while (b in selection):
             b = np.random.choice(len(chromosome_probabilities), 1, p=chromosome_probabilities)
             b = b.tolist()
             b = b[0]
-
+            if b not in selection:
+                break
+        while(a==b):
+            b = np.random.choice(len(chromosome_probabilities), 1, p=chromosome_probabilities)
+            b = b.tolist()
+            b = b[0]
+            if a != b:
+                break
+        selection.append(a)
+        selection.append(b)
+        print(a, b)
+        print(selection)
         layer_child1, layer_child2, unit_child1, unit_child2 = self.crossover(population_[a], population_[b],
                                                                               conv_unit[a],
                                                                               conv_unit[b])
         return torch.tensor(layer_child1), torch.tensor(layer_child2), torch.tensor(unit_child1), torch.tensor(
-            unit_child2)
+            unit_child2), selection
 
     def crossover(self, layer_parent1, layer_parent2, unit_parent1, unit_parent2):
         print("crossover")
@@ -149,9 +163,9 @@ class Pop():
                 len_layer_parent2 = b
 
         if len_layer_parent1 >= len_layer_parent2:
-            cross_pt = np.random.randint(0, len_layer_parent2)
+            cross_pt = len_layer_parent2 // 2  # np.random.randint(0, len_layer_parent2)
         else:
-            cross_pt = np.random.randint(0, len_layer_parent1)
+            cross_pt = len_layer_parent1 // 2  # np.random.randint(0, len_layer_parent1)
 
         layer_child1.extend(layer_parent1[:cross_pt])
         layer_child1.extend(layer_parent2[cross_pt:])
@@ -210,8 +224,6 @@ class Pop():
         for a in range(len(error_rate)):
             error.append(error_rate[a])
 
-        # error = list(map(int, error))
-
         population_ = population_.tolist()
 
         for x in range(2):
@@ -224,7 +236,7 @@ class Pop():
         return torch.tensor(population_), ConvUnit, error
 
     def mutation(self, layer_child1, layer_child2, unit_child1, unit_child2):
-        randNum = np.random.randint(1, 4)
+        randNum = np.random.randint(1, 6)
         len_layer_child1, len_layer_child2 = 0, 0
         for a in range(len(layer_child1)):
             if layer_child1[a] == 5:
@@ -270,9 +282,73 @@ class Pop():
             np.put(unit2_numpy, one_point_ch2, random.choice(self.conv))
             unit_child2 = unit2_numpy.tolist()
 
-
-
         elif randNum == 2:
+            print("mutation. add dense block layer")
+            one_point_ch1 = np.random.randint(2, len_layer_child1 - 2)
+            one_point_ch2 = np.random.randint(2, len_layer_child2 - 2)
+
+            ch1_numpy = np.array(layer_child1)
+            if len(ch1_numpy) != params_settings.pop_layer:
+                ch1_numpy = np.delete(ch1_numpy, one_point_ch1)
+                np.put(ch1_numpy, one_point_ch1, 7)
+            np.put(ch1_numpy, one_point_ch1, 7)
+            layer_child1 = ch1_numpy.tolist()
+
+            unit1_numpy = np.array(unit_child1)
+            if len(unit1_numpy) != params_settings.pop_layer:
+                unit1_numpy = np.delete(unit1_numpy, one_point_ch1)
+                np.put(unit1_numpy, one_point_ch1, random.choice(self.conv))
+            np.put(unit1_numpy, one_point_ch1, random.choice(self.conv))
+            unit_child1 = unit1_numpy.tolist()
+
+            ch2_numpy = np.array(layer_child2)
+            if len(ch2_numpy) != params_settings.pop_layer:
+                ch2_numpy = np.delete(ch2_numpy, one_point_ch2)
+                np.put(ch2_numpy, one_point_ch2, 7)
+            np.put(ch2_numpy, one_point_ch2, 7)
+            layer_child2 = ch2_numpy.tolist()
+
+            unit2_numpy = np.array(unit_child2)
+            if len(unit2_numpy) != params_settings.pop_layer:
+                unit2_numpy = np.delete(unit2_numpy, one_point_ch2)
+                np.put(unit2_numpy, one_point_ch2, random.choice(self.conv))
+            np.put(unit2_numpy, one_point_ch2, random.choice(self.conv))
+            unit_child2 = unit2_numpy.tolist()
+
+        elif randNum == 3:
+            print("mutation. add senet block layer")
+            one_point_ch1 = np.random.randint(2, len_layer_child1 - 2)
+            one_point_ch2 = np.random.randint(2, len_layer_child2 - 2)
+
+            ch1_numpy = np.array(layer_child1)
+            if len(ch1_numpy) != params_settings.pop_layer:
+                ch1_numpy = np.delete(ch1_numpy, one_point_ch1)
+                np.put(ch1_numpy, one_point_ch1, 2)
+            np.put(ch1_numpy, one_point_ch1, 2)
+            layer_child1 = ch1_numpy.tolist()
+
+            unit1_numpy = np.array(unit_child1)
+            if len(unit1_numpy) != params_settings.pop_layer:
+                unit1_numpy = np.delete(unit1_numpy, one_point_ch1)
+                np.put(unit1_numpy, one_point_ch1, random.choice(self.conv))
+            np.put(unit1_numpy, one_point_ch1, random.choice(self.conv))
+            unit_child1 = unit1_numpy.tolist()
+
+            ch2_numpy = np.array(layer_child2)
+            if len(ch2_numpy) != params_settings.pop_layer:
+                ch2_numpy = np.delete(ch2_numpy, one_point_ch2)
+                np.put(ch2_numpy, one_point_ch2, 2)
+            np.put(ch2_numpy, one_point_ch2, 2)
+            layer_child2 = ch2_numpy.tolist()
+
+            unit2_numpy = np.array(unit_child2)
+            if len(unit2_numpy) != params_settings.pop_layer:
+                unit2_numpy = np.delete(unit2_numpy, one_point_ch2)
+                np.put(unit2_numpy, one_point_ch2, random.choice(self.conv))
+            np.put(unit2_numpy, one_point_ch2, random.choice(self.conv))
+            unit_child2 = unit2_numpy.tolist()
+
+        elif randNum == 4:
             print("mutation. delete layer")
             one_point_ch1 = np.random.randint(2, len_layer_child1 - 2)
             one_point_ch2 = np.random.randint(2, len_layer_child2 - 2)
@@ -366,51 +442,20 @@ class Pop():
         print("-" * 30)
         print("1 generation")
 
-        fields = []
-        for label in range(self.pop_layer):
-            fields.append('layer{}'.format(label + 1))
-        for label in range(self.pop_layer):
-            fields.append('output{}'.format(label + 1))
-        fields.append("acc")
-
-        training_list = []
-
         for Chromosome in range(len(population)):
             model = create_model.GANAS(population[Chromosome], conv_unit[Chromosome]).to(device)
-
-            initialPop = population[Chromosome]
-            initialUnit = conv_unit[Chromosome]
-            for pop in range(len(initialPop)):
-                training_list.append(int(initialPop[pop]))
-            for pop in range(len(initialUnit)):
-                training_list.append(int(initialUnit[pop]))
-
+            # print(model)
             trainloader, testloader = dataloader.data_loader()
             error_rate = train.training(model, trainloader, testloader, params_settings.epoch)
             all_error.append(float(error_rate[0]))
-            training_list.append(float(error_rate[0]))
-
-        training_list = np.array(training_list)
-        training_list = training_list.reshape((-1, params_settings.pop_layer * 2 + 1))
-
-        with open('train.csv', 'w', newline='') as f:
-            write = csv.writer(f)
-            write.writerow(fields)
-            for num in range(params_settings.population):
-                write.writerow(training_list[num])
-
-        df = pd.read_csv('train.csv')
-        X = df.iloc[:, :-1].to_numpy()
-        Y = df.iloc[:, -1].to_numpy()
-        rfmodel = RandomForestRegressor()
-        rfmodel.fit(X, Y)
 
         generation_fitness.append(min(all_error))
         print("init error")
         print(all_error)
+        selection = []
         for ch in range(len(population) // 4):
             print("offsrting start")
-            layer_child1, layer_child2, unit_child1, unit_child2 = self.select(all_error, population, conv_unit)
+            layer_child1, layer_child2, unit_child1, unit_child2, selection = self.select(all_error, population, conv_unit, selection)
             population, conv_unit, all_error = self.del_pop(all_error, population, conv_unit)
             population, conv_unit = self.cat(population, conv_unit, layer_child1, layer_child2, unit_child1,
                                              unit_child2)
@@ -419,46 +464,22 @@ class Pop():
         for generation in range(1, params_settings.generations):
             print("-" * 30)
             print(generation + 1, "generation")
-            test_list = []
             for Chromosome in range(params_settings.population // 2, len(population)):
                 model = create_model.GANAS(population[Chromosome], conv_unit[Chromosome]).to(device)
 
-                Pop = population[Chromosome]
-                Unit = conv_unit[Chromosome]
-
-                for pop in range(len(Pop)):
-                    test_list.append(int(Pop[pop]))
-                for pop in range(len(Unit)):
-                    test_list.append(int(Unit[pop]))
-
-                # trainloader, testloader = dataloader.data_loader()
-                # error_rate = train.training(model, trainloader, testloader, params_settings.epoch)
-                # all_error.append(error_rate)
-                # test_list.append(float(error_rate[0]))
-
-            test_list = np.array(test_list)
-            test_list = test_list.reshape((-1, params_settings.pop_layer * 2))
-            # print(test_list)
-            with open('test.csv', 'w', newline='') as f:
-                write = csv.writer(f)
-                write.writerow(fields)
-                for num in range(params_settings.population // 2):
-                    write.writerow(test_list[num])
-            test_list = test_list.tolist()
-            df2 = pd.read_csv('test.csv')
-            X_test = df2.iloc[:, :-1].to_numpy()
-            prediction = rfmodel.predict(X_test)
-            for i in range(len(prediction)):
-                all_error.append(prediction[i])
+                trainloader, testloader = dataloader.data_loader()
+                error_rate = train.training(model, trainloader, testloader, params_settings.epoch)
+                all_error.append(error_rate[0])
 
             generation_fitness.append(min(all_error))
 
             print(generation + 1, "error")
             print(all_error)
 
+            selection = []
             for ch in range(len(population) // 4):
                 print("offsrting start")
-                layer_child1, layer_child2, unit_child1, unit_child2 = self.select(all_error, population, conv_unit)
+                layer_child1, layer_child2, unit_child1, unit_child2, selection = self.select(all_error, population, conv_unit, selection)
                 population, conv_unit, all_error = self.del_pop(all_error, population, conv_unit)
                 population, conv_unit = self.cat(population, conv_unit, layer_child1, layer_child2, unit_child1,
                                                  unit_child2)
@@ -471,7 +492,7 @@ class Pop():
         best_conv = final_conv_unit[0]
         model = create_model.GANAS(best_pop, best_conv).to(device)
 
-        torch.save(model, f'./model3.pt')
+        torch.save(model.state_dict(), f"./" + params_settings.model_name + ".pt")
         print("end..")
         self.drawGA(generation_fitness)
 
@@ -480,4 +501,4 @@ class Pop():
         plt.ylabel("Fitness")
         plt.plot(value)
         plt.show()
-        plt.savefig('./model3.png')
+        plt.savefig('./' + params_settings.model_name + '.png')
